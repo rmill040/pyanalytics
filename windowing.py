@@ -72,7 +72,7 @@ def sliding_window(data_set = None, window_size_seconds = None, stride_seconds =
 
     # Get labels if label variable provided (for example with training data)
     # If no labels, only return sliding windows for data_set (for example with testing data)
-    if labels is not None:
+    if label_name is not None:
         # Create labels for each window
         labels = np.zeros(len(windows))
         if labeling == 'last_label':
