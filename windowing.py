@@ -1,10 +1,7 @@
 from __future__ import division
 
-from joblib import Parallel, delayed
-import multiprocessing
 import numpy as np
 import pandas as pd
-
 
 __all__ = ["sliding_window"]
 
@@ -83,7 +80,7 @@ def sliding_window(data_set = None, window_size_seconds = None, stride_seconds =
         elif labeling == 'majority_label':
             from scipy.stats import mode
             # Create labels for each window by taking the mode of the class labels in the window as the overall window label; if tie choose 
-            # among class labels randomly
+            # among class labels randomly.
             for i in xrange(labels.shape[0]):
                 labels[i] = float(mode(windows[i][label_name])[0])
         else:
