@@ -390,10 +390,18 @@ class FirthLogisticRegression(object):
 					print('Algorithm converged after %d iterations\n' % i)
 				else:
 					pass
-
+				# Break after printing option
 				break
 			
 			else:
+
+				# Implement half-step method if specified to try and find better b_new			
+				if self.half_step:
+					if ll_new < ll_old:
+						step /= 2.0
+						b_new = self._halfstep_adjust(X = X, y = y, p = p, XtWX = -self.hessian, b = b_old, step = step)
+						ll_new = self._log_likelihood(X = X, b = b_new, y = y)
+
 				# Print if necessary
 				if self.verbose > 1:
 					print('Iteration %d | log-likelihood = %f' % (i, ll_new))
@@ -401,12 +409,6 @@ class FirthLogisticRegression(object):
 				# Copy old iterations and increase counter
 				b_old, ll_old = b_new, ll_new
 				i += 1
-
-				# Implement half-step method if specified
-				if self.half_step:
-					if ll_new < ll_old:
-						step /= 2.0
-						b_old = self._halfstep_adjust(X = X, y = y, p = p, XtWX = -self.hessian, b = b_old, step = step)
 
 		else:
 			raise RuntimeError('Algorithm did not converge after %d iterations\n' % self.max_its)
