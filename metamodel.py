@@ -168,10 +168,10 @@ class MetaModel(object):
 
 		# Generate indices for cross-validation and preallocate data structures
 		fold_generator = self._get_folds(X, y)			# Generator for CV folds
-		X_meta = []										# Empty list for meta-features
-		level1_acc = np.zeros((self.n_level1, self.k)) 	# Numpy array for level1 model accuracies across folds
-		n_classes = np.unique(y)						# Unique classes
-		fold = 0										# Fold counter
+		X_meta = []						# Empty list for meta-features
+		level1_acc = np.zeros((self.n_level1, self.k)) 		# Numpy array for level1 model accuracies across folds
+		n_classes = np.unique(y)				# Unique classes
+		fold = 0						# Fold counter
 
 		##########################################################################
 		####################### GENERATE META-FEATURES ###########################
@@ -297,7 +297,7 @@ class MetaModel(object):
 		assert(self.trained == True), "Error: Need to call .fit() method to train models before calling .predict() method"
 
 		# Get size of testing features, preallocate empty array for meta features
-		X = np.atleast_2d(X) 	# Ensure that shape has 2 dimensions
+		X = np.atleast_2d(X) 	# Ensure that X has 2 dimensions
 		n = X.shape[0]
 		X_meta = []
 		fold = 0
