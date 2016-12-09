@@ -9,7 +9,7 @@ __all__ = ["MetaModel"]
 
 
 # TODO: 1. Test one-hot encoding with classifiers
-#		2. Add regression functionality
+#	2. Add regression functionality
 
 class MetaModel(object):
 	"""
