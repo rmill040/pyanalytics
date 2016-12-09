@@ -5,18 +5,18 @@ import numpy as np
 __all__ = ["FirthLogisticRegression"]
 
 # TODO: - Add catches for singular matrices, maybe add generalized inverse in some cases
-#		- Compare method to R's implementation
-#		- Add misc error checking
-#		- Find example that tests half-stepping
-#		- Add functionality for confidence intervals
-#		- Add functionality to plot decision boundary
+#	- Compare method to R's implementation
+#	- Add misc error checking
+#	- Find example that tests half-stepping
+#	- Add functionality for confidence intervals
+#	- Add functionality to plot decision boundary
 
 
 class FirthLogisticRegression(object):
 	"""A naive implementation of Firth's logistic regression
 
 	Notation below: ' = matrix transpose
-					* = matrix multiplication or elementwise multiplication (lazy notation here)
+			* = matrix multiplication or elementwise multiplication (lazy notation here)
 
 	Parameters
 	----------
