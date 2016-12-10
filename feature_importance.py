@@ -36,13 +36,13 @@ def rank_importances(trained_model = None, features_to_rank = -1, plot = False, 
 	indices = np.argsort(importances)[::-1]
 
 	# Determine how many features to return (with a lot of features, returning all of them is often challening to look through)
-	if features_to_rank == -1:						# Return all features
+	if features_to_rank == -1:		# Return all features
 		n_feats = len(indices)
-	elif features_to_rank < len(indices):			# Return top k features
+	elif features_to_rank < len(indices):	# Return top k features
 		n_feats = features_to_rank
 	else:
 		print('\nThe number of features you input (%d) is less than the number of features available (%d) -> Ranking only %d features\n' % (features_to_rank, len(indices), len(indices)))
-		n_feats = len(indices)						# Return all features available since features_to_rank < features in data set
+		n_feats = len(indices)		# Return all features available since features_to_rank < features in data set
 
 	# Print the feature ranking
 	print("Feature ranking:")
