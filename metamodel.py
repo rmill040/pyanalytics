@@ -183,11 +183,11 @@ class MetaModelClassifier(object):
 		y = y.ravel()
 
 		# Generate indices for cross-validation and preallocate data structures
-		fold_generator = self._get_folds(X, y)				# Generator for CV folds
-		X_meta = []											# Empty list for meta-features
+		fold_generator = self._get_folds(X, y)			# Generator for CV folds
+		X_meta = []						# Empty list for meta-features
 		level1_acc = np.zeros((self.n_level1, self.k)) 		# Numpy array for level1 model accuracies across folds
-		n_classes = np.unique(y)							# Unique classes
-		fold = 0											# Fold counter
+		n_classes = np.unique(y)				# Unique classes
+		fold = 0						# Fold counter
 
 		##########################################################################
 		####################### GENERATE META-FEATURES ###########################
@@ -498,10 +498,10 @@ class MetaModelRegressor(object):
 		y = y.ravel()
 
 		# Generate indices for cross-validation and preallocate data structures
-		fold_generator = self._get_folds(X)					# Generator for CV folds
-		X_meta = []											# Empty list for meta-features
+		fold_generator = self._get_folds(X)			# Generator for CV folds
+		X_meta = []						# Empty list for meta-features
 		level1_acc = np.zeros((self.n_level1, self.k)) 		# Numpy array for level1 model accuracies across folds
-		fold = 0											# Fold counter
+		fold = 0						# Fold counter
 
 		##########################################################################
 		####################### GENERATE META-FEATURES ###########################
