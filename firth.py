@@ -8,7 +8,7 @@ warnings.simplefilter("ignore", RuntimeWarning)   # Suppresses runtime warnings 
 __all__ = ["FirthLogisticRegression"]
 
 # TODO: 
-#   - Add catches for singular matrices, maybe add generalized inverse in some cases
+#   	- Add catches for singular matrices, maybe add generalized inverse in some cases
 #	- Add misc error checking
 #	- Find example that tests half-stepping
 #	- Add functionality for confidence intervals
@@ -19,7 +19,7 @@ class FirthLogisticRegression(object):
 	"""An implementation of Firth's logistic regression
 
 	Notation below: ' = matrix transpose
-					* = matrix multiplication or elementwise multiplication (lazy notation here)
+			* = matrix multiplication or elementwise multiplication (lazy notation here)
 
 	Parameters
 	----------
