@@ -1,11 +1,14 @@
 from __future__ import division, print_function
 
 import numpy as np
+import warnings
+warnings.simplefilter("ignore", RuntimeWarning)   # Suppresses runtime warnings that occur with perfect separation
+
 
 __all__ = ["FirthLogisticRegression"]
 
-# TODO: - Add catches for singular matrices, maybe add generalized inverse in some cases
-#	- Compare method to R's implementation
+# TODO: 
+#   - Add catches for singular matrices, maybe add generalized inverse in some cases
 #	- Add misc error checking
 #	- Find example that tests half-stepping
 #	- Add functionality for confidence intervals
@@ -13,10 +16,10 @@ __all__ = ["FirthLogisticRegression"]
 
 
 class FirthLogisticRegression(object):
-	"""A naive implementation of Firth's logistic regression
+	"""An implementation of Firth's logistic regression
 
 	Notation below: ' = matrix transpose
-			* = matrix multiplication or elementwise multiplication (lazy notation here)
+					* = matrix multiplication or elementwise multiplication (lazy notation here)
 
 	Parameters
 	----------
@@ -149,7 +152,7 @@ class FirthLogisticRegression(object):
 
 
 	def _hat_matrix(self, X = None, W = None):
-		"""Calculate hat matrix hat = W^(1/2) * X * (X'*W*X)^(-1) * X'*W^(1/2)
+		"""Calculate hat matrix = W^(1/2) * X * (X'*W*X)^(-1) * X'*W^(1/2)
 
 		Parameters
 		----------
@@ -167,7 +170,7 @@ class FirthLogisticRegression(object):
 			Note: If half-step method not implemented, this matrix is simply not used
 		"""
 		# W^(1/2)
-		Wsqrt = W**2
+		Wsqrt = W**(0.5)
 
 		# (X'*W*X)^(-1)
 		XtWX = -self._hessian(X = X, W = W)
@@ -243,8 +246,9 @@ class FirthLogisticRegression(object):
 		return b_old.reshape(-1, 1) - np.dot(np.linalg.inv(hessian), score)
 
 
-	def _check_convergence(self, ll_old = None, ll_new = None):
-		"""Check convergence of current iteration
+	def _check_convergence(self, ll_old = None, ll_new = None, b_old = None, b_new = None):
+		"""Check convergence of current iteration using log-likelihood values unless nans, then
+		   use coefficients instead
 
 		Parameters
 		----------
@@ -254,15 +258,27 @@ class FirthLogisticRegression(object):
 		ll_new : float
 			Log-likelihood at ith iteration
 
+		b_old : 1d array-like
+			Array of coefficients from (i - 1)th iteration
+
+		b_new : 1d array-like
+			Array of coefficients from ith iteration
+
 		Returns
 		-------
 		status : bool
 			Whether algorithm converges (1) or not (0)
 		"""
-		if np.abs(ll_old - ll_new) < self.tol:
-			return 1
+		if np.isnan(ll_old) or np.isnan(ll_new):
+			if np.sum(np.abs(b_old.ravel() - b_new.ravel())) < self.tol:
+				return 1
+			else:
+				return 0
 		else:
-			return 0
+			if np.abs(ll_old - ll_new) < self.tol:
+				return 1
+			else:
+				return 0
 
 
 	@staticmethod
@@ -346,6 +362,9 @@ class FirthLogisticRegression(object):
 			ones = np.ones((X.shape[0], 1))
 			X = np.hstack((ones, X))
 
+		# Reshape y
+		y = y.reshape(-1, 1)
+
 		# Dimension of feature matrix
 		_, p = X.shape
 
@@ -378,8 +397,9 @@ class FirthLogisticRegression(object):
 			b_new = self._update(b_old = b_old, hessian = self.hessian, score = self.score)
 			ll_new = self._log_likelihood(X = X, b = b_new, y = y)
 
-			# Check covergence
-			if self._check_convergence(ll_old = ll_old, ll_new = ll_new):
+			# Check covergence --> if ll_new == nan, then check convergence using coefficients
+			# otherwise using log-likelihood as usual
+			if self._check_convergence(ll_old = ll_old, ll_new = ll_new, b_old = b_old, b_new = b_new):
 				self.coef_ = b_new		# Save final coefficients as attribute
 
 				# Print if necessary
@@ -411,7 +431,8 @@ class FirthLogisticRegression(object):
 				i += 1
 
 		else:
-			raise RuntimeError('Algorithm did not converge after %d iterations\n' % self.max_its)
+			# Should be a RunTimeError but these are suppressed so ValueError for now
+			raise ValueError('Algorithm did not converge after %d iterations\n' % self.max_its) 
 
 
 	def predict_proba(self, X = None):
@@ -506,58 +527,3 @@ class FirthLogisticRegression(object):
 		se = np.sqrt(np.diag(var_cov))
 
 		return np.hstack((self.coef_.reshape(-1, 1), se.reshape(-1, 1)))
-
-
-def main():
-
-	# TESTS
-	from sklearn.linear_model import LogisticRegression
-	import statsmodels.api as sm
-
-	# Simulate simple logistic regression model
-	N = 500
-	b0 = 1
-	b1 = .59
-
-	# Covariate(s)
-	x = np.random.normal(0, 1, (N, 1))
-
-	# Dependent variable
-	y_linear = b0 + b1*x
-	y_probs = 1 / (1 + np.exp(-y_linear))
-	y = np.random.binomial(1, y_probs, (N, 1))
-
-	# Firth method with half-step
-	firth_half = FirthLogisticRegression(verbose = 2, half_step = True)
-	firth_half_estimates = firth_half.estimate(X = x, y = y)
-	
-	# Firth method w/o half-step
-	firth_reg = FirthLogisticRegression(verbose = 2, half_step = False)
-	firth_reg_estimates = firth_reg.estimate(X = x, y = y)
-
-	# Sklearn's logistic regression
-	# Append intercept term to x for sklearn and statsmodel
-	x = np.hstack((np.ones(x.shape), x))
-	sklearn = LogisticRegression(fit_intercept = False)
-	sklearn.fit(x, y.ravel())
-	sklearn_coef = sklearn.coef_
-
-	# Statsmodels logistic regression
-	statsmodel = sm.GLM(y, x, family = sm.families.Binomial())
-	results = statsmodel.fit()
-	statsmodel_coef = results.params
-	statsmodel_se = np.sqrt(np.diag(-np.linalg.inv(statsmodel.information(statsmodel_coef))))
-
-	print('\n---- POINT ESTIMATES\n')
-	print('Firth logistic regression w/ half-stepping', firth_half_estimates[:, 0].reshape(1, -1))
-	print('Firth logistic regression w/o half-stepping', firth_reg_estimates[:, 0].reshape(1, -1))
-	print('Sklearn logistic regression', sklearn_coef.reshape(1, -1))
-	print('Statsmodels logistic regression', statsmodel_coef.reshape(1, -1))
-
-	print('\n---- STANDARD ERRORS\n')
-	print('Firth logistic regression w/ half-stepping', firth_half_estimates[:, 1].reshape(1, -1))
-	print('Firth logistic regression w/o half-stepping', firth_reg_estimates[:, 1].reshape(1, -1))
-	print('Statsmodels logistic regression', statsmodel_se.reshape(1, -1))
-
-if __name__ == "__main__":
-	main()
