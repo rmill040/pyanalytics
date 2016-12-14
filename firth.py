@@ -451,6 +451,11 @@ class FirthLogisticRegression(object):
 		y_probs : 1d array-like
 			Array of predicted class probabilities (dimension is [n, 2] since each class gets a probability)
 		"""
+		# Add intercept if needed
+		if self.fit_intercept:
+			ones = np.ones((X.shape[0], 1))
+			X = np.hstack((ones, X))
+
 		return np._logit(X = X, b = self.coef_)
 
 
@@ -469,7 +474,7 @@ class FirthLogisticRegression(object):
 		y_classes : 1d array-like
 			Array of predicted class labels
 		"""
-		y_probs = self._predict_proba(X = X)
+		y_probs = self._predict_proba(X = X)  # Intercept added in predict_proba() method if specified
 		y_classes = np.zeros(y_probs.shape)
 
 		# Threshold probabilities
