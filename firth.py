@@ -443,9 +443,6 @@ class FirthLogisticRegression(object):
 		X : 2d array-like
 			Matrix of covariates (usually from testing set)
 
-		y : 1d array-like
-			Array of dependent variable (or labels)
-
 		Returns
 		-------
 		y_probs : 1d array-like
