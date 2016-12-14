@@ -85,7 +85,7 @@ class FirthLogisticRegression(object):
 		p : 1d array-like
 			Predicted probabilities based on X and b
 		"""
-		exp_Xb = np.exp(np.dot(X, b.reshape(-1, 1)))
+		exp_Xb = np.exp(np.dot(X, b))
 		return (exp_Xb / (1 + exp_Xb)).reshape(-1, 1)
 
 
