@@ -419,7 +419,7 @@ class FirthLogisticRegression(object):
 				if self.half_step:
 					if ll_new < ll_old:
 						step /= 2.0
-						b_new = self._halfstep_adjust(X = X, y = y, p = p, XtWX = -self.hessian, b = b_old, step = step)
+						b_new = self._halfstep_adjust(X = X, y = y, p = p, XtWX = -self.hessian, b = b_new, step = step)
 						ll_new = self._log_likelihood(X = X, b = b_new, y = y)
 
 				# Print if necessary
