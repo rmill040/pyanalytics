@@ -8,46 +8,45 @@ warnings.simplefilter("ignore", RuntimeWarning)   # Suppresses runtime warnings 
 __all__ = ["FirthLogisticRegression"]
 
 # TODO: 
-#   	- Add catches for singular matrices, maybe add generalized inverse in some cases
-#	- Add misc error checking
-#	- Find example that tests half-stepping
-#	- Add functionality for confidence intervals
-#	- Add functionality to plot decision boundary
+#	- Add catches for singular matrices, maybe add generalized inverse in some cases
 
 
 class FirthLogisticRegression(object):
 	"""An implementation of Firth's logistic regression
 
-	Notation below: ' = matrix transpose
-			* = matrix multiplication or elementwise multiplication (lazy notation here)
+	Notation below: 
+		' = matrix transpose
+		* = matrix multiplication or elementwise multiplication (lazy notation here)
 
 	Parameters
 	----------
 	fit_intercept : bool (default True)
 		Whether to fit the intercept in the model. If true, a vector of ones is appended to the covariate matrix
 
-	max_its : int (default 100)
+	max_its : int (default 1000)
 		Maximum iterations for fitting
 
-	tol : float (default 1e-12)
+	tol : float (default 1e-8)
 		Tolerance criteria for convergence
 
 	verbose : bool (default False)
 		Whether to print status of fitting algorithm. Value of 1 indicates print only convergence status,
 		value > 1 print status at every iteration
 
-	half_step : bool (default True)
+	half_step : bool (default False)
 		Whether to implement half-step method to deal with convergence issues
 
-		Note: This method is not tested since simple tests did not meet criteria. Also, may need to incorporate
-		      Firth's score correction in the implementation as opposed to score vector in classific logistic reg
+		Note: Seems to slow convergence down in some cases. Although not 100% sure method is implemented correctly.
+
+	learning_rate : float (default 0.9)
+		Learning rate for adjusting coefficients at each update.
     
     Returns
     -------
     self : object
         Instance of FirthLogisticRegression class
     """
-	def __init__(self, fit_intercept = True, max_its = 100, tol = 1e-12, verbose = False, half_step = True):
+	def __init__(self, fit_intercept = True, max_its = 1000, tol = 1e-8, verbose = False, half_step = False, learning_rate = 0.9):
 		_valid_bool = [True, False, 1, 0]
 		if fit_intercept in _valid_bool:
 			self.fit_intercept = fit_intercept
@@ -56,6 +55,8 @@ class FirthLogisticRegression(object):
 		
 		self.max_its = max_its
 		self.tol = tol
+		self.learning_rate = learning_rate
+		self.model_estimated = False
 		
 		if verbose in _valid_bool or verbose > 1:
 			self.verbose = verbose
@@ -222,8 +223,7 @@ class FirthLogisticRegression(object):
 		return np.dot(X.T, (resid + bias))
 
 
-	@staticmethod
-	def _update(b_old = None, hessian = None, score = None):
+	def _update(self, b_old = None, hessian = None, score = None):
 		"""Newton update for coefficients as b_old - hessian^(-1)*score
 
 		Parameters
@@ -243,12 +243,12 @@ class FirthLogisticRegression(object):
 			Updated coefficient based on Newton's method
 		"""
 		# Newton update
-		return b_old.reshape(-1, 1) - np.dot(np.linalg.inv(hessian), score)
+		return b_old.reshape(-1, 1) - self.learning_rate*np.dot(np.linalg.inv(hessian), score)
 
 
-	def _check_convergence(self, ll_old = None, ll_new = None, b_old = None, b_new = None):
+	def _check_convergence(self, ll_old = None, ll_new = None):
 		"""Check convergence of current iteration using log-likelihood values unless nans, then
-		   use coefficients instead
+		   use gradient vector instead as in R's brglm implementation
 
 		Parameters
 		----------
@@ -258,19 +258,13 @@ class FirthLogisticRegression(object):
 		ll_new : float
 			Log-likelihood at ith iteration
 
-		b_old : 1d array-like
-			Array of coefficients from (i - 1)th iteration
-
-		b_new : 1d array-like
-			Array of coefficients from ith iteration
-
 		Returns
 		-------
 		status : bool
 			Whether algorithm converges (1) or not (0)
 		"""
 		if np.isnan(ll_old) or np.isnan(ll_new):
-			if np.sum(np.abs(b_old.ravel() - b_new.ravel())) < self.tol:
+			if np.sum(np.fabs(self.score)) < self.tol:
 				return 1
 			else:
 				return 0
@@ -281,24 +275,11 @@ class FirthLogisticRegression(object):
 				return 0
 
 
-	@staticmethod
-	def _halfstep_adjust(X = None, y = None, p = None, XtWX = None, b = None, step = None):
+	def _halfstep_adjust(b = None, step = None):
 		"""Half step adjustment method
 
 		Parameters
 		----------
-		X : 2d array-like
-			Matrix of covariates
-
-		y : 1d array-like
-			Matrix of dependent variable (or labels)
-
-		p : 1d array-like
-			Array of predicted probabilities
-
-		XtWX : 2d array-like
-			Negative hessian matrix
-
 		b : 1d array-like
 			Array of coefficients
 
@@ -310,14 +291,8 @@ class FirthLogisticRegression(object):
 		b_new : 1d array-like
 			Updated coefficients using half-step method
 		"""
-		# Calculate 'residual' as y - p
-		resid = y.reshape(-1, 1) - p.reshape(-1, 1)
-
-		# X'*(y - p)
-		Xt_resid = np.dot(X.T, resid)
-
-		# Solutions to equation X'*W*X = X'*(y - p)
-		delta = np.linalg.solve(XtWX, Xt_resid)
+		# Solutions to equation 
+		delta = np.linalg.solve(-self.hessian, self.score)
 
 		# Check for step criteria
 		if np.abs(step - 1.0) > .001:
@@ -397,10 +372,11 @@ class FirthLogisticRegression(object):
 			b_new = self._update(b_old = b_old, hessian = self.hessian, score = self.score)
 			ll_new = self._log_likelihood(X = X, b = b_new, y = y)
 
-			# Check covergence --> if ll_new == nan, then check convergence using coefficients
+			# Check covergence --> if ll_new == nan, then check convergence using gradient vector
 			# otherwise using log-likelihood as usual
-			if self._check_convergence(ll_old = ll_old, ll_new = ll_new, b_old = b_old, b_new = b_new):
+			if self._check_convergence(ll_old = ll_old, ll_new = ll_new):
 				self.coef_ = b_new		# Save final coefficients as attribute
+				self.ll = ll_new        # Save final log-likelihood value
 
 				# Print if necessary
 				if self.verbose == 1:
@@ -411,6 +387,7 @@ class FirthLogisticRegression(object):
 				else:
 					pass
 				# Break after printing option
+				self.model_estimated = True
 				break
 			
 			else:
@@ -419,7 +396,7 @@ class FirthLogisticRegression(object):
 				if self.half_step:
 					if ll_new < ll_old:
 						step /= 2.0
-						b_new = self._halfstep_adjust(X = X, y = y, p = p, XtWX = -self.hessian, b = b_new, step = step)
+						b_new = self._halfstep_adjust(b = b_new, step = step)
 						ll_new = self._log_likelihood(X = X, b = b_new, y = y)
 
 				# Print if necessary
@@ -432,7 +409,7 @@ class FirthLogisticRegression(object):
 
 		else:
 			# Should be a RunTimeError but these are suppressed so ValueError for now
-			raise ValueError('Algorithm did not converge after %d iterations\n' % self.max_its) 
+			raise ValueError('Algorithm did not converge after %d iterations. Try adjusting the convergence parameters\n' % self.max_its) 
 
 
 	def predict_proba(self, X = None):
@@ -448,12 +425,14 @@ class FirthLogisticRegression(object):
 		y_probs : 1d array-like
 			Array of predicted class probabilities (dimension is [n, 2] since each class gets a probability)
 		"""
+		assert(self.model_estimated == True), "Need to run .fit() or .estimate() method first"
+
 		# Add intercept if needed
 		if self.fit_intercept:
 			ones = np.ones((X.shape[0], 1))
 			X = np.hstack((ones, X))
 
-		return np._logit(X = X, b = self.coef_)
+		return self._logit(X = X, b = self.coef_)
 
 
 	def predict(self, X = None):
@@ -471,17 +450,19 @@ class FirthLogisticRegression(object):
 		y_classes : 1d array-like
 			Array of predicted class labels
 		"""
-		y_probs = self._predict_proba(X = X)  # Intercept added in predict_proba() method if specified
+		assert(self.model_estimated == True), "Need to run .fit() or .estimate() method first"
+
+		y_probs = self.predict_proba(X = X)  # Intercept added in predict_proba() method if specified
 		y_classes = np.zeros(y_probs.shape)
 
 		# Threshold probabilities
 		for i in xrange(y_probs.shape[0]):
-			if y_probs >= .5:
+			if y_probs[i] >= .5:
 				y_classes[i] = 1
 		return y_classes
 
 
-	def score(self, y_true = None, y_hat = None):
+	def accuracy(self, y_true = None, y_hat = None):
 		"""Calculate classification accuracy
 
 		Parameters
@@ -497,7 +478,7 @@ class FirthLogisticRegression(object):
 		acc : float
 			Classification accuracy
 		"""
-		return np.mean(y_true == y_hat)
+		return np.mean(y_true.ravel() == y_hat.ravel())
 
 
 	def estimate(self, X = None, y = None):
@@ -529,3 +510,41 @@ class FirthLogisticRegression(object):
 		se = np.sqrt(np.diag(var_cov))
 
 		return np.hstack((self.coef_.reshape(-1, 1), se.reshape(-1, 1)))
+
+
+	def confint(self, estimates = None):
+		"""Calculate confidence intervals for each coefficient as [b - 1.96*se(b), b + 1.96*se(b)]
+
+		Parameters
+		----------
+		estimates : 2d array-like
+			Matrix of dimension [j, 2] that contains point estimates in column 1 and standard errors in column 2,
+			where j is the number of covariates
+
+		Returns
+		-------
+		intervals : 2d array-like
+			Matrix of dimension [j, 2] that contains confidence interval estimates. Lower limit estimates are in column 1 and
+			upper limit estimates are in column 2, where j is the number of covariates
+		"""	
+		intervals = np.zeros((estimates.shape))
+		for j in xrange(intervals.shape[0]):
+			intervals[j, 0], intervals[j, 1]  = estimates[j, 0] - 1.96*estimates[j, 1], estimates[j, 0] + 1.96*estimates[j, 1]
+		return intervals
+
+
+	def aic(self):
+		"""Calculate Akaike information criterion as 2*j - 2*log-likelihood, where j is the number of covariates and the log-likelihood
+		   is from the final fitted model
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		aic : float
+			AIC
+		"""
+		assert(self.model_estimated == True), "Need to run .fit() or .estimate() method first"
+		return 2*len(self.coef_) - 2*self.ll
