@@ -167,8 +167,6 @@ class FirthLogisticRegression(object):
 		-------
 		hat : 2d array-like
 			Hat matrix
-
-			Note: If half-step method not implemented, this matrix is simply not used
 		"""
 		# W^(1/2)
 		Wsqrt = W**(0.5)
