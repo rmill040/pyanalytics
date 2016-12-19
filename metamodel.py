@@ -39,7 +39,6 @@ class MetaModelClassifier(object):
 	level2_needs_one_hot = boolean
 		Whether the level 2 model needs a one-hot encoded vector for the labels
 
-
 	verbose : boolean (default = False)
 		Whether to display output summary during training
 
